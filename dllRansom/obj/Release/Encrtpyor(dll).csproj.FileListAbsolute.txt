@@ -1,0 +1,11 @@
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\dllRansom.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Dropbox.Api.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Newtonsoft.Json.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\System.Diagnostics.DiagnosticSource.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.AssemblyReference.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.CoreCompileInputs.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.Fody.CopyLocal.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.CopyComplete
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.pdb

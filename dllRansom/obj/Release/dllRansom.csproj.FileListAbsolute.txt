@@ -1,0 +1,11 @@
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\dllRansom.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.csproj.AssemblyReference.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.csproj.CoreCompileInputs.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Dropbox.Api.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Newtonsoft.Json.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Dropbox.Api.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\Newtonsoft.Json.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.csproj.CopyComplete

@@ -1,0 +1,6 @@
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Debug\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Debug\dllRansom.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Debug\dllRansom.csproj.AssemblyReference.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Debug\dllRansom.csproj.CoreCompileInputs.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Debug\dllRansom.dll
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Debug\dllRansom.pdb
