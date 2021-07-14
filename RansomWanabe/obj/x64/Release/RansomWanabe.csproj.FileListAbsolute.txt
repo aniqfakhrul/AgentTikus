@@ -1,0 +1,13 @@
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\RansomWanabe.exe.config
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\RansomWanabe.exe
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\RansomWanabe.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\Dropbox.Api.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\Newtonsoft.Json.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\System.Diagnostics.DiagnosticSource.xml
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.csproj.AssemblyReference.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.csproj.CoreCompileInputs.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.csproj.Fody.CopyLocal.cache
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.csproj.CopyComplete
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.exe
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\x64\Release\RansomWanabe.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\bin\x64\Release\BouncyCastle.Crypto.xml

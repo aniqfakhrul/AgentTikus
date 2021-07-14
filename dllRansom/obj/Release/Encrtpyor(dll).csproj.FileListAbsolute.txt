@@ -9,3 +9,4 @@ C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.
 C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\Encrtpyor(dll).csproj.CopyComplete
 C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.dll
 C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\obj\Release\dllRansom.pdb
+C:\Users\ch4rm\Desktop\RansomWanabe\dllRansom\bin\Release\BouncyCastle.Crypto.xml

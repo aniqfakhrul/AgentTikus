@@ -9,4 +9,3 @@ C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\Release\RansomWanabe.csproj
 C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\Release\RansomWanabe.csproj.CopyComplete
 C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\Release\RansomWanabe.exe
 C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\Release\RansomWanabe.pdb
-C:\Users\ch4rm\Desktop\RansomWanabe\RansomWanabe\obj\Release\RansomWanabe.csproj.AssemblyReference.cache
